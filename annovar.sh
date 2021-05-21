@@ -1,11 +1,10 @@
 #!/bin/bash
-#PBS -q ngs192G
-#PBS -P MST108173
-#PBS -W group_list=MST108173
-#PBS -N run_TBB_VC
-#PBS -l select=1:ncpus=40
-#PBS -l walltime=40:00:00
-#PBS -M b05611003@ntu.edu.tw
+#PBS -q <QueueName>		### queuename
+#PBS -P <groupID>		### group name on your nchc website
+#PBS -W group_list=<groupID>	### same as above
+#PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
+#PBS -l walltime=8:00:00	### clock time limit after job started
+#PBS -M <email>	### eamil setting to follow jobs status
 #PBS -m be
 #PBS -j oe
 

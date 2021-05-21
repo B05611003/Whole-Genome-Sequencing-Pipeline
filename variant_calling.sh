@@ -1,10 +1,10 @@
 #!/bin/bash
-#PBS -q ngs192G
-#PBS -P MST108173
-#PBS -W group_list=MST108173
-#PBS -l select=1:ncpus=40
-#PBS -l walltime=8:00:00
-#PBS -M hsnu134828@gmail.com
+#PBS -q <QueueName>		### queuename
+#PBS -P <groupID>		### group name on your nchc website
+#PBS -W group_list=<groupID>	### same as above
+#PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
+#PBS -l walltime=<hh:mm:ss>	### clock time limit after job started
+#PBS -M <email>	### eamil setting to follow jobs status
 #PBS -m be
 #PBS -j oe
 
@@ -23,32 +23,35 @@ printf "########################################################################
 # ******************************************
 # 0. Setup
 # ******************************************
-#  If you use this shell script directly, you should define SampleName variable
+#  If you use this shell script directly(without Run_vc.pl), you should define SampleName variable
 if [[ -z ${SampleName} ]]; then
-	#define your sample name here
+	#define your output sample name here
 	SampleName=""
 fi
 
 # Update with the fullpath location of your sample fastq file
-fastq_folder="/work2/lions/twbk/TWBR10811-02/WGS/FASTQ/${SampleName}"
+fastq_folder="<fullpath of fastq folder>"
 fastq_1="${fastq_folder}/*R1_001.fastq.gz" #
 fastq_2="${fastq_folder}/*R2_001.fastq.gz" #If using Illumina paired data
+platform="<your sequencing platform>"      #eg.Illumina
+### do not change below
 sample=${SampleName}
 group="GP_"${SampleName}
-platform="ILLUMINA"
+###
 
 # Update with the location of the reference data files
-## In lab server, the ref hg19 data is in NAS dna (/home/dna/ref_hg19)
-ref_dir="/home/alex134828/sentieon/Reference/ref_hg19"
+ref_dir="<fullpath of reference data folder>"
+### do not change below
 fasta="${ref_dir}/ucsc.hg19.fasta"
 dbsnp="${ref_dir}/dbsnp_138.hg19.vcf"
 known_Mills_indels="${ref_dir}/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
 known_1000G_indels="${ref_dir}/1000G_phase1.indels.hg19.sites.vcf"
+###
 
 # Determine whether Variant Quality Score Recalibration will be run
 ## VQSR should only be run when there are sufficient variants called
-run_vqsr="yes"
-
+run_vqsr="<yes/no>" # "yes" if you wish to run VQSR
+### do not change below
 # Update with the location of the resource files for VQSR
 vqsr_Mill="${ref_dir}/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
 vqsr_1000G_omni="${ref_dir}/1000G_omni2.5.hg19.sites.vcf"
@@ -56,18 +59,22 @@ vqsr_hapmap="${ref_dir}/hapmap_3.3.hg19.sites.vcf"
 vqsr_1000G_phase1="${ref_dir}/1000G_phase1.snps.high_confidence.hg19.sites.vcf"
 vqsr_1000G_phase1_indel="${ref_dir}/1000G_phase1.indels.hg19.sites.vcf"
 vqsr_dbsnp="${ref_dir}/dbsnp_138.hg19.vcf"
+###
 
 # Update with the location of the Sentieon software package and license file (bcftools is optional for vcf normalization)
-export SENTIEON_LICENSE=#your sentieon license
-release_dir=/home/alex134828/sentieon/bins/sentieon-genomics-201808
-bcftools_dir=/home/alex134828/bin/bcftools
+export SENTIEON_LICENSE="<your sentieon license IP>"
+release_dir="<full path of your sentieon package>"
+bcftools_dir="<full path of your bcftools >"
 
 # Other settings
-nt=40                                                                #number of threads to use in computation
-workdir="/project/GP1/alex134828/sentieon/Jobs/GATK_3/${SampleName}" #Determine where the output files will be stored
+nt="<thread count>"                           #number of threads to use in computation
+workdir="<fullpath of your output directory>" #Determine where the output files will be stored
+logfile="${workdir}/<logfile name>"
+
+## setting done, generally you don't need to change anything below except you wish to change which files to kill at #303
 
 mkdir -p $workdir
-logfile=$workdir/run.log
+
 set -x
 exec 3<&1 4<&2
 exec >$logfile 2>&1
@@ -86,7 +93,7 @@ cd $workdir
 ($release_dir/bin/bwa mem -M -R "@RG\tID:$group\tSM:$sample\tPL:$platform" -t $nt -K 10000000 $fasta $fastq_1 $fastq_2 || echo -n 'error') | $release_dir/bin/sentieon util sort -r $fasta -o ${SampleName}.sorted.bam -t $nt --sam2bam -i -
 
 # ******************************************
-# 2. Metrics
+# 2. Metrics (ignored)
 # ******************************************
 # $release_dir/bin/sentieon driver \
 # 	-r $fasta \
@@ -105,43 +112,43 @@ cd $workdir
 # 3. Remove Duplicate Reads
 # ******************************************
 $release_dir/bin/sentieon driver \
-	-t $nt \
-	-i ${SampleName}.sorted.bam \
-	--algo LocusCollector \
-	--fun score_info ${SampleName}.score.txt
+-t $nt \
+-i ${SampleName}.sorted.bam \
+--algo LocusCollector \
+--fun score_info ${SampleName}.score.txt
 $release_dir/bin/sentieon driver \
-	-t $nt \
-	-i ${SampleName}.sorted.bam \
-	--algo Dedup \
-	--rmdup \
-	--score_info ${SampleName}.score.txt \
-	--metrics ${SampleName}.dedup_metrics.txt \
-	${SampleName}.deduped.bam
+-t $nt \
+-i ${SampleName}.sorted.bam \
+--algo Dedup \
+--rmdup \
+--score_info ${SampleName}.score.txt \
+--metrics ${SampleName}.dedup_metrics.txt \
+${SampleName}.deduped.bam
 
 # ******************************************
 # 4. Indel realigner
 # ******************************************
 $release_dir/bin/sentieon driver \
-	-r $fasta \
-	-t $nt \
-	-i ${SampleName}.deduped.bam \
-	--algo Realigner \
-	-k $known_Mills_indels \
-	-k $known_1000G_indels \
-	${SampleName}.realigned.bam
+-r $fasta \
+-t $nt \
+-i ${SampleName}.deduped.bam \
+--algo Realigner \
+-k $known_Mills_indels \
+-k $known_1000G_indels \
+${SampleName}.realigned.bam
 
 # ******************************************
 # 5. Base recalibration
 # ******************************************
 $release_dir/bin/sentieon driver \
-	-r $fasta \
-	-t $nt \
-	-i ${SampleName}.realigned.bam \
-	--algo QualCal \
-	-k $dbsnp \
-	-k $known_Mills_indels \
-	-k $known_1000G_indels \
-	${SampleName}.recal_data.table
+-r $fasta \
+-t $nt \
+-i ${SampleName}.realigned.bam \
+--algo QualCal \
+-k $dbsnp \
+-k $known_Mills_indels \
+-k $known_1000G_indels \
+${SampleName}.recal_data.table
 
 #$release_dir/bin/sentieon driver -r $fasta -t $nt -i realigned.bam -q recal_data.table --algo QualCal -k $dbsnp -k $known_Mills_indels -k $known_1000G_indels recal_data.table.post
 #$release_dir/bin/sentieon driver -t $nt --algo QualCal --plot --before recal_data.table --after recal_data.table.post recal.csv
@@ -156,26 +163,26 @@ $release_dir/bin/sentieon driver \
 # 6b. HC Variant caller
 # ******************************************
 $release_dir/bin/sentieon driver \
-	-r $fasta \
-	-t $nt \
-	-i ${SampleName}.realigned.bam \
-	-q ${SampleName}.recal_data.table \
-	--algo Haplotyper \
-	-d $dbsnp \
-	--emit_conf=10 \
-	--call_conf=30 \
-	${SampleName}.output-hc.vcf.gz
+-r $fasta \
+-t $nt \
+-i ${SampleName}.realigned.bam \
+-q ${SampleName}.recal_data.table \
+--algo Haplotyper \
+-d $dbsnp \
+--emit_conf=10 \
+--call_conf=30 \
+${SampleName}.output-hc.vcf.gz
 
 # gvcf
 $release_dir/bin/sentieon driver \
-	-r $fasta \
-	-t $nt \
-	-i ${SampleName}.realigned.bam \
-	-q ${SampleName}.recal_data.table \
-	--algo Haplotyper \
-	-d $dbsnp \
-	--emit_mode gvcf \
-	${SampleName}.output-hc.g.vcf.gz
+-r $fasta \
+-t $nt \
+-i ${SampleName}.realigned.bam \
+-q ${SampleName}.recal_data.table \
+--algo Haplotyper \
+-d $dbsnp \
+--emit_mode gvcf \
+${SampleName}.output-hc.g.vcf.gz
 
 # ******************************************
 # 5b. ReadWriter to output recalibrated bam
@@ -185,12 +192,12 @@ $release_dir/bin/sentieon driver \
 # the recalibration table
 # ******************************************
 $release_dir/bin/sentieon driver \
-	-r $fasta \
-	-t $nt \
-	-i ${SampleName}.realigned.bam \
-	-q ${SampleName}.recal_data.table \
-	--algo ReadWriter \
-	${SampleName}.recaled.bam
+-r $fasta \
+-t $nt \
+-i ${SampleName}.realigned.bam \
+-q ${SampleName}.recal_data.table \
+--algo ReadWriter \
+${SampleName}.recaled.bam
 
 # ******************************************
 # 7a. Somatic and Structural variant calling
@@ -199,7 +206,7 @@ $release_dir/bin/sentieon driver \
 #$release_dir/bin/sentieon driver -r $fasta  -t $nt -i ${SampleName}.realigned.bam -q ${SampleName}.recal_data.table --algo TNscope --tumor_sample $sample  --dbsnp $dbsnp ${SampleName}.output_tnscope.vcf.gz
 
 # ******************************************
-# 7b. Variant Recalibration (VQSR)
+# 8. Variant Recalibration (VQSR)
 # ******************************************
 if [ "$run_vqsr" = "yes" ]; then
 	#for SNP
@@ -222,30 +229,30 @@ if [ "$run_vqsr" = "yes" ]; then
 	tranches="--tranche 100.0 --tranche 99.9 --tranche 99.0 --tranche 98.0 --tranche 97.0 --tranche 96.0 --tranche 95.0 --tranche 94.0 --tranche 93.0 --tranche 92.0 --tranche 91.0 --tranche 90.0"
 
 	$release_dir/bin/sentieon driver \
-		-r $fasta \
-		-t $nt \
-		--algo VarCal \
-		-v ${SampleName}.output-hc.vcf.gz $resource_text $annotate_text \
-		--var_type SNP \
-		--plot_file ${SampleName}.vqsr_SNP.hc.plot_file.txt \
-		--max_gaussians 8 \
-		--srand 47382911 \
-		--tranches_file ${SampleName}.vqsr_SNP.hc.tranches ${SampleName}.vqsr_SNP.hc.recal $tranches
+	-r $fasta \
+	-t $nt \
+	--algo VarCal \
+	-v ${SampleName}.output-hc.vcf.gz $resource_text $annotate_text \
+	--var_type SNP \
+	--plot_file ${SampleName}.vqsr_SNP.hc.plot_file.txt \
+	--max_gaussians 8 \
+	--srand 47382911 \
+	--tranches_file ${SampleName}.vqsr_SNP.hc.tranches ${SampleName}.vqsr_SNP.hc.recal $tranches
 
 	#apply the VQSR
 	$release_dir/bin/sentieon driver \
-		-r $fasta \
-		-t $nt \
-		--algo ApplyVarCal \
-		-v ${SampleName}.output-hc.vcf.gz \
-		--var_type SNP \
-		--recal ${SampleName}.vqsr_SNP.hc.recal \
-		--tranches_file ${SampleName}.vqsr_SNP.hc.tranches \
-		--sensitivity 99.7 ${SampleName}.vqsr_SNP.hc.recaled.vcf.gz
+	-r $fasta \
+	-t $nt \
+	--algo ApplyVarCal \
+	-v ${SampleName}.output-hc.vcf.gz \
+	--var_type SNP \
+	--recal ${SampleName}.vqsr_SNP.hc.recal \
+	--tranches_file ${SampleName}.vqsr_SNP.hc.tranches \
+	--sensitivity 99.7 ${SampleName}.vqsr_SNP.hc.recaled.vcf.gz
 
 	#plot the report
 	$release_dir/bin/sentieon plot vqsr \
-		-o ${SampleName}.vqsr_SNP.VQSR.pdf ${SampleName}.vqsr_SNP.hc.plot_file.txt
+	-o ${SampleName}.vqsr_SNP.VQSR.pdf ${SampleName}.vqsr_SNP.hc.plot_file.txt
 
 	#for indels after SNPs
 	#create the resource argument
@@ -264,33 +271,33 @@ if [ "$run_vqsr" = "yes" ]; then
 	tranches="--tranche 100.0 --tranche 99.9 --tranche 99.0 --tranche 98.0 --tranche 97.0 --tranche 96.0 --tranche 95.0 --tranche 94.0 --tranche 93.0 --tranche 92.0 --tranche 91.0 --tranche 90.0"
 
 	$release_dir/bin/sentieon driver \
-		¸
+	¸
 
 	#apply the VQSR
 	$release_dir/bin/sentieon driver \
-		-r $fasta \
-		-t $nt \
-		--algo ApplyVarCal \
-		-v ${SampleName}.vqsr_SNP.hc.recaled.vcf.gz \
-		--var_type INDEL \
-		--recal ${SampleName}.vqsr_SNP_INDEL.hc.recal \
-		--tranches_file ${SampleName}.vqsr_SNP_INDEL.hc.tranches \
-		--sensitivity 99.5 ${SampleName}.vqsr_SNP_INDEL.hc.recaled.vcf.gz
+	-r $fasta \
+	-t $nt \
+	--algo ApplyVarCal \
+	-v ${SampleName}.vqsr_SNP.hc.recaled.vcf.gz \
+	--var_type INDEL \
+	--recal ${SampleName}.vqsr_SNP_INDEL.hc.recal \
+	--tranches_file ${SampleName}.vqsr_SNP_INDEL.hc.tranches \
+	--sensitivity 99.5 ${SampleName}.vqsr_SNP_INDEL.hc.recaled.vcf.gz
 
 	#plot the report
 	$release_dir/bin/sentieon plot vqsr \
-		-o ${SampleName}.vqsr_SNP_INDEL.VQSR.pdf ${SampleName}.vqsr_SNP_INDEL.hc.plot_file.txt
+	-o ${SampleName}.vqsr_SNP_INDEL.VQSR.pdf ${SampleName}.vqsr_SNP_INDEL.hc.plot_file.txt
 fi
 
 # decompose and normalization
 
 ${bcftools_dir}/bin/bcftools norm \
-	--multiallelics -both \
-	--fasta-ref ${fasta} \
-	--output-type z \
-	--output ${SampleName}.decomposed.normalized.vcf.gz \
-	--threads ${nt} \
-	${SampleName}.output-hc.vcf.gz
+--multiallelics -both \
+--fasta-ref ${fasta} \
+--output-type z \
+--output ${SampleName}.decomposed.normalized.vcf.gz \
+--threads ${nt} \
+${SampleName}.output-hc.vcf.gz
 
 ## modify here if you wanna kill any large files
 if [[ $? -eq 0 ]]; then

@@ -1,12 +1,11 @@
 #!/bin/bash
-#PBS -q ngs384G
-#PBS -P MST109178
-#PBS -W group_list=MST109178
-#PBS -N joint_calling
-#PBS -l select=1:ncpus=40
-#PBS -M hsnu134828@gmail.com
-#PBS -m b
-#PBS -m e
+#PBS -q <QueueName>		### queuename
+#PBS -P <groupID>		### group name on your nchc website
+#PBS -W group_list=<groupID>	### same as above
+#PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
+#PBS -l walltime=<hh:mm:ss>	### clock time limit after job started
+#PBS -M <email>	### eamil setting to follow jobs status
+#PBS -m be
 #PBS -j oe
 
 set -euo pipefail
@@ -28,23 +27,33 @@ release_dir=/project/GP1/alex134828/sentieon/bins/sentieon-genomics-201808 #sent
 # 0. Setup
 # ******************************************
 
-output_name="TBB_1496_with_GIAB_joing_calling.vcf.gz"         # Your file name
-ref_dir="/project/GP1/alex134828/sentieon/Reference/ref_hg19" # Directory of FASTA reference file
+output_name="<output file name>" # Your file name
+# Update with the location of the reference data files
+ref_dir="<fullpath of reference data foler>"
+### do not change below
 fasta="${ref_dir}/ucsc.hg19.fasta"
-gvcf_id_list="/project/GP1/alex134828/WGS_DATA/ID_list/list.txt" # Sample ID list that includes all gvcf sample
-gvcf_dir="/project/GP1/alex134828/WGS_DATA/GVCF"                 # Directory that includes all gvcf sample
+###
 
-nt=40                                                   # Number of threads to use in computation
-workdir="/project/GP1/alex134828/WGS_DATA/JointCalling" # Determine where the output files will be stored
-GIAB_include="no"
+# Update with the location of the gvcf data files
+gvcf_id_list="<fullpath of text file includes all gvcf sample name>"      # Sample ID list that includes all gvcf sample name
+gvcf_dir="<fullpath of directory includes all gvcf file>"                 # Directory that includes all gvcf sample
+GIAB_id_list="<fullpath of text file includes all GIAB gvcf sample name>" # (optional) Sample ID list that includes all GIAB gvcf sample name
+GIAB_dir="<fullpath of directory includes GIAB gvcf file>"                # (optional) Directory that includes all GIAB gvcf sample
+# Other settings
+nt="<thread count>"                           #number of threads to use in computation
+workdir="<fullpath of your output directory>" #Determine where the output files will be stored
+logfile="${workdir}/<logfile name>"
+GIAB_include="<yes/no>" #yes if you with to combine GIAB gloden standard with your datasets
+## setting done, generally you don't need to change anything below except you wish to change which files to kill at #303
 
 mkdir -p $workdir
-logfile=$workdir/run.log
+
 set -x
 exec 3<&1 4<&2
 exec >$logfile 2>&1
 
 cd $workdir
+
 # ******************************************
 # 1. Reading gvcf file
 # ******************************************
@@ -59,10 +68,9 @@ echo "insert gvcf done"
 
 #batch_GIAB
 if [ ${GIAB_include} = "yes" ]; then
-	list_ID="/project/GP1/alex134828/sentieon/Jobs/ID_list/list_GIAB.txt"
 	while read line; do
-		all_gvcf="$all_gvcf ${line}"
-	done <$list_ID
+		all_gvcf="$all_gvcf ${GIAB_dir}/${line}"
+	done <${GIAB_id_list}
 	echo "insert GIAB done"
 fi
 
@@ -71,9 +79,9 @@ fi
 # ******************************************
 
 ${release_dir}/bin/sentieon driver \
-	-r ${fasta} \
-	-t ${nt} \
-	--algo GVCFtyper ${output_name} ${all_gvcf}
+-r ${fasta} \
+-t ${nt} \
+--algo GVCFtyper ${output_name} ${all_gvcf}
 # --emit_mode confident
 
 set +x

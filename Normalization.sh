@@ -1,12 +1,11 @@
 #!/bin/bash
-#PBS -q ngs384G
-#PBS -P MST109178
-#PBS -W group_list=MST109178
-#PBS -N joint_calling
-#PBS -l select=1:ncpus=40
-#PBS -M hsnu134828@gmail.com
-#PBS -m b
-#PBS -m e
+#PBS -q <QueueName>		### queuename
+#PBS -P <groupID>		### group name on your nchc website
+#PBS -W group_list=<groupID>	### same as above
+#PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
+#PBS -l walltime=8:00:00	### clock time limit after job started
+#PBS -M <email>	### eamil setting to follow jobs status
+#PBS -m be
 #PBS -j oe
 
 set -euo pipefail
