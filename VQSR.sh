@@ -4,7 +4,7 @@
 #PBS -W group_list=<groupID>	### same as above
 #PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
 #PBS -l walltime=<hh:mm:ss>	### clock time limit after job started
-#PBS -M <email>	### eamil setting to follow jobs status
+#PBS -M <email>	### email setting to follow job status
 #PBS -m be
 #PBS -j oe
 

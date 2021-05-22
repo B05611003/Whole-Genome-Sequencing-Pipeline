@@ -4,7 +4,7 @@
 #PBS -W group_list=<groupID>	### same as above
 #PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
 #PBS -l walltime=<hh:mm:ss>	### clock time limit after job started
-#PBS -M <email>	### eamil setting to follow jobs status
+#PBS -M <email>	### email setting to follow job status
 #PBS -m be
 #PBS -j oe
 
@@ -26,7 +26,7 @@ printf "########################################################################
 #  If you use this shell script directly(without Run_vc.pl), you should define SampleName variable
 if [[ -z ${SampleName} ]]; then
 	#define your output sample name here
-	SampleName=""
+	SampleName=$1
 fi
 
 # Update with the fullpath location of your sample fastq file

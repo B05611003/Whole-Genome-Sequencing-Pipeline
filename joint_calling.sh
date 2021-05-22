@@ -4,7 +4,7 @@
 #PBS -W group_list=<groupID>	### same as above
 #PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
 #PBS -l walltime=<hh:mm:ss>	### clock time limit after job started
-#PBS -M <email>	### eamil setting to follow jobs status
+#PBS -M <email>	### email setting to follow job status
 #PBS -m be
 #PBS -j oe
 
@@ -16,16 +16,16 @@ printf "########################################################################
 
 # *******************************************
 # Script to perform cohort joing calling
-# using a single sample gvcf files
+# using a cohort of single sample gvcf files
 # *******************************************
-
-# Update with the location of the Sentieon software package and license file
-export SENTIEON_LICENSE=#your sentieon license
-release_dir=/project/GP1/alex134828/sentieon/bins/sentieon-genomics-201808 #sentieon package directory
 
 # ******************************************
 # 0. Setup
 # ******************************************
+
+# Update with the location of the Sentieon software package and license file (bcftools is optional for vcf normalization)
+export SENTIEON_LICENSE="<your sentieon license IP>"
+release_dir="<full path of your sentieon package>"
 
 output_name="<output file name>" # Your file name
 # Update with the location of the reference data files

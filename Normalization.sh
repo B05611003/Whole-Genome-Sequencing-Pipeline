@@ -4,50 +4,62 @@
 #PBS -W group_list=<groupID>	### same as above
 #PBS -l select=1:ncpus=40	### cpu thread count (qstat -Qf <queue> and find `resources_default.ncpus` to fill)
 #PBS -l walltime=8:00:00	### clock time limit after job started
-#PBS -M <email>	### eamil setting to follow jobs status
+#PBS -M <email>	### email setting to follow job status
 #PBS -m be
 #PBS -j oe
 
 set -euo pipefail
 
 printf "#############################################################################\n"
-printf "###                  Work started:   $(date +%Y-%m-%d:%H:%M:%S)                  ###\n"
+printf "###                  Work started:   $(date +%Y-%m-%d:%H:%M:%S)           ###\n"
 printf "#############################################################################\n"
 
-ref_dir="/home/alex134828/sentieon/Reference/ref_hg19"
-fasta="${ref_dir}/ucsc.hg19.fasta"
-bcftools_dir="/home/alex134828/bin/bcftools"
-
-SampleName="TBB_1496_with_GIAB_joing_calling.vcf.gz"
-SampleFile="TBB_1496_with_GIAB_joing_calling.vcf.gz.SNP_INDEL.recaled.vcf.gz"
+# *******************************************
+# Script to perform VCF normalization and
+# decompose using a single vcf file as an input.
+# *******************************************
 
 # ******************************************
 # 0. Setup
 # ******************************************
 
-#DIR setting
+# Update with the location of the reference data files
+ref_dir="<fullpath of reference data folder>"
+### do not change below
+fasta="${ref_dir}/ucsc.hg19.fasta"
+###
 
-WORKDIR="/project/GP1/alex134828/WGS_DATA/JointCalling" #Determine where the output files will be stored
-cd ${WORKDIR}
+# Update with the location of the bcftools package
+bcftools_dir="<full path of your bcftools >"
+# Update the input vcf name 
+InputFileName="<Input file name without \".vcf.gz\">"
+
 # Other settings
-nt=40 #number of threads to use in computation
-#WORKDIR=${JOBDIR}/Outputs/1497VCF #Determine where the output files will be stored
-#SRCDIR=${JOBDIR}/Outputs/${SampleName}
-#cd ${WORKDIR}/log
+nt="<thread count>"                           #number of threads to use in computation
+workdir="<fullpath of your output directory>" #Determine where the output files will be stored
+logfile="${workdir}/<logfile name>"
+
+## setting done, generally you don't need to change anything below
+
+mkdir -p $workdir
 
 set -x
 exec 3<&1 4<&2
-exec > dn_run.log 2>&1
+exec >$logfile 2>&1
+
+cd $workdir
+
+# ******************************************
+# 1. Decompose and Normalization start
+# ******************************************
 
 ${bcftools_dir}/bin/bcftools norm \
-        --multiallelics -both \
-        --fasta-ref ${fasta} \
-        --output-type z \
-        --output ${SampleName}.decomposed.normalized.vcf.gz \
-        --threads ${nt} \
-		${SampleFile}
-
-#${JOBDIR}/bcftools/bcftools norm -f ${fasta} -t ${nt} -m -both -o ${SampleName}.norm.vcf ${SampleName}.output-hc.vcf
+--multiallelics -both \
+--fasta-ref ${fasta} \
+--output-type z \
+--output ${InputFileName}.decomposed.normalized.vcf.gz \
+--threads ${nt} \
+${InputFileName}.vcf.gz
 
 set +x
 exec >&3 2>&4
