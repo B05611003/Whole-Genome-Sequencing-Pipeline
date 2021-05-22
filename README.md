@@ -16,7 +16,7 @@ To run on PBS system server:
 #running single shellscript using queue
 qsub -N <jobname> -o <qsub_logfile_name> job.sh
 # single sample WGS to run large cohort
-perl run_job.pl -i <id_list> -s <start_line> -e\ <end_line>
+perl run_job.pl -i <id_list> -s <start_line> -e <end_line>
 ## -s and -e is the line number of -i file starts with 1
 ```
 
